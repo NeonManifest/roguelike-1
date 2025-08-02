@@ -15,7 +15,15 @@ function love.load()
     walls = {}
     pockets = {}
     tableImage = love.graphics.newImage("sprites/table.png")
-
+    ballImages = {
+        whiteBall  = love.graphics.newImage("sprites/bola branca.png"),
+        redBall    = love.graphics.newImage("sprites/bola VERMELHA.png"),
+        orangeBall = love.graphics.newImage("sprites/bola LARANJA.png"),
+        yellowBall = love.graphics.newImage("sprites/bola AMARELA.png"),
+        greenBall  = love.graphics.newImage("sprites/bola VERDE.png"),
+        blueBall   = love.graphics.newImage("sprites/bola AZUL.png"),
+        violetBall = love.graphics.newImage("sprites/bola VIOLETA.png"),
+    }
     game_start(round)
     love.update = gameUpdate
 end
@@ -31,7 +39,7 @@ function game_start(round)
         table.insert(walls, {body=body, shape=shape})
     end
 
-    local function makeBall(x, y, radius, userData)
+    local function makeBall(x, y, radius, ballType)
         local body = love.physics.newBody(world, x, y, "dynamic")
         local shape = love.physics.newCircleShape(radius)
         local fixture = love.physics.newFixture(body, shape, 1)
@@ -39,14 +47,23 @@ function game_start(round)
         fixture:setRestitution(0) -- handled manually
         fixture:setUserData("ball")
         body:setLinearDamping(0.5)
-        return {body=body, shape=shape}
+        return {body=body, shape=shape, type=ballType}
+    end
+
+    local function makePocket(x, y, radius)
+        local body = love.physics.newBody(world, x, y, "static")
+        local shape = love.physics.newCircleShape(radius)
+        local fixture = love.physics.newFixture(body, shape)
+        fixture:setSensor(true) -- makes it a trigger, not a physical obstacle
+        fixture:setUserData("pocket")
+        table.insert(pockets, {body=body, shape=shape})
     end
 
     balls = {}
     walls = {}
     pockets = {}
 
-    local radius = 3
+    local radius = 4
     local minX = 10 + 10/2 + radius
     local maxX = 150 - 10/2 - radius
     local minY = 42 + 10/2 + radius
@@ -60,9 +77,16 @@ function game_start(round)
     for i = 1, numBalls do
         local x = love.math.random(minX, maxX)
         local y = love.math.random(minY, maxY)
-        table.insert(balls, makeBall(x, y, radius, "ball"))
+        table.insert(balls, makeBall(x, y, radius, "yellowBall"))
     end
-
+    -- Create pockets
+    local pocketRadius = 4.5
+    makePocket(14, 46, pocketRadius)   -- top-left
+    makePocket(146, 46, pocketRadius)  -- top-right
+    makePocket(14, 104, pocketRadius)  -- bottom-left
+    makePocket(146, 104, pocketRadius) -- bottom-right
+    makePocket(80, 45, pocketRadius)   -- top-center
+    makePocket(80, 105, pocketRadius)  -- bottom-center
     -- Create walls around the table
     makeWall(80, 39, 160, 10)   -- top wall
     makeWall(80, 111, 160, 10)  -- bottom wall
@@ -96,7 +120,7 @@ end
 shotStrength = 0
 hasShot = false
 function shotStrengthUpdate(dt)
-    shotStrength = shotStrength + (dt * 100)
+    shotStrength = shotStrength + (dt * 500)
     if shotStrength > 1000 then
         shotStrength = 0
     end
@@ -119,6 +143,20 @@ end
 function gameUpdate(dt)
     world:update(dt)
     -- Check every frame if a ball fell into a pocket
+    for i = #balls, 1, -1 do
+        local ball = balls[i]
+        local ballX, ballY = ball.body:getPosition()
+        for _, pocket in ipairs(pockets) do
+            local px, py = pocket.body:getPosition()
+            local dx, dy = ballX - px, ballY - py
+            local distSq = dx*dx + dy*dy
+            if distSq < (6 * 6) then
+                ball.body:destroy()
+                table.remove(balls, i)
+                break
+            end
+        end
+    end
     -- Check if all balls in play are stationary
     local allStationary = true
     for _, ball in ipairs(balls) do
@@ -130,13 +168,18 @@ function gameUpdate(dt)
         end
     end
     if allStationary then
+        -- If there is only one ball left, start another round
+        if #balls == 1 then
+            round = round + 1
+            game_start(round)
+            return
+        end
         -- If all balls are stationary, switch to shot update
         love.update = shotUpdate
         setStartingShotAngle()
         return
     end
 end
-
 
 function love.keypressed(key)
     if key == "space" then
@@ -150,6 +193,7 @@ function love.keypressed(key)
             local fy = forceMagnitude * math.sin(shotAngle)
             balls[1].body:applyForce(fx, fy)
             hasShot = true
+            shotStrength = 0
             love.update = gameUpdate
         end
     end
@@ -160,10 +204,10 @@ function love.draw()
     love.graphics.scale(gameScale, gameScale)
     love.graphics.draw(tableImage, 0, 0)
     for _, ball in ipairs(balls) do
-        love.graphics.setColor(1, 1, 1)
-        love.graphics.circle("fill", ball.body:getX(), ball.body:getY(), ball.shape:getRadius())
+        img = ballImages[ball.type]
+        love.graphics.draw(img, ball.body:getX()-4, ball.body:getY()-4)
     end
-    if love.update == shotUpdate then
+    if love.update == shotUpdate or love.update == shotStrengthUpdate then
         local whiteBallBody = balls[1].body
         local lineLength = 160
         local startX = whiteBallBody:getX()
@@ -189,6 +233,24 @@ function love.draw()
         love.graphics.setLineWidth(1)
         love.graphics.line(startX, startY, endX, endY)
     end
+    if love.update == shotStrengthUpdate then
+        love.graphics.setColor(1, 1, 1)
+        local whiteBallBody = balls[1].body
+        local startX = whiteBallBody:getX()
+        local startY = whiteBallBody:getY()
+        -- draw shot strength bar
+        local barWidth = 4
+        local barHeight = 20
+        local barX = startX + 5
+        local barY = startY - barHeight
+        love.graphics.setColor(0, 0, 0)
+        love.graphics.rectangle("fill", barX, barY, barWidth, barHeight)
+        love.graphics.setColor(1, 0, 0)
+        local filledHeight = (shotStrength / 1000) * barHeight
+        love.graphics.rectangle("fill", barX, barY + barHeight - filledHeight, barWidth, filledHeight)
+        love.graphics.setColor(1, 1, 1)
+        love.graphics.rectangle("line", barX, barY, barWidth, barHeight)
+    end
     love.graphics.setColor(1, 1, 1) -- Reset color
     love.graphics.pop()
 end
@@ -208,36 +270,36 @@ function beginContact(fixtureA, fixtureB, contact)
         local rvy = vy - 2 * dot * ny
         ballBody:setLinearVelocity(rvx, rvy)
     end
-local function handleBallBallCollision(ballFixtureA, ballFixtureB, contact)
-    local ballA = ballFixtureA:getBody()
-    local ballB = ballFixtureB:getBody()
-    local ax, ay = ballA:getPosition()
-    local bx, by = ballB:getPosition()
-    local avx, avy = ballA:getLinearVelocity()
-    local bvx, bvy = ballB:getLinearVelocity()
-    local ma = ballA:getMass()
-    local mb = ballB:getMass()
-    -- Collision normal (unit vector)
-    local nx, ny = bx - ax, by - ay
-    local dist = math.sqrt(nx*nx + ny*ny)
-    if dist == 0 then return end -- avoid division by zero
-    nx, ny = nx/dist, ny/dist
-    -- Relative velocity along the normal
-    local relVel = (bvx - avx) * nx + (bvy - avy) * ny
-    if relVel > 0 then return end -- balls are separating
-    -- Coefficient of restitution (1 = perfectly bouncy)
-    local e = 0.8
-    -- Impulse scalar
-    local j = -(1 + e) * relVel / (1/ma + 1/mb)
-    -- Apply impulse along the normal
-    local jx, jy = j * nx, j * ny
-    ballA:setLinearVelocity(avx - jx/ma, avy - jy/ma)
-    ballB:setLinearVelocity(bvx + jx/mb, bvy + jy/mb)
-end
+    local function handleBallBallCollision(ballFixtureA, ballFixtureB, contact)
+        local ballA = ballFixtureA:getBody()
+        local ballB = ballFixtureB:getBody()
+        local ax, ay = ballA:getPosition()
+        local bx, by = ballB:getPosition()
+        local avx, avy = ballA:getLinearVelocity()
+        local bvx, bvy = ballB:getLinearVelocity()
+        local ma = ballA:getMass()
+        local mb = ballB:getMass()
+        -- Collision normal (unit vector)
+        local nx, ny = bx - ax, by - ay
+        local dist = math.sqrt(nx*nx + ny*ny)
+        if dist == 0 then return end -- avoid division by zero
+        nx, ny = nx/dist, ny/dist
+        -- Relative velocity along the normal
+        local relVel = (bvx - avx) * nx + (bvy - avy) * ny
+        if relVel > 0 then return end -- balls are separating
+        -- Coefficient of restitution (1 = perfectly bouncy)
+        local e = 0.8
+        -- Impulse scalar
+        local j = -(1 + e) * relVel / (1/ma + 1/mb)
+        -- Apply impulse along the normal
+        local jx, jy = j * nx, j * ny
+        ballA:setLinearVelocity(avx - jx/ma, avy - jy/ma)
+        ballB:setLinearVelocity(bvx + jx/mb, bvy + jy/mb)
+    end
     -- Identify which is ball and which is wall
-    if (fixtureA:getUserData() == "ball" or fixtureA:getUserData() == "whiteBall") and fixtureB:getUserData() == "wall" then
+    if (fixtureA:getUserData() == "ball") and fixtureB:getUserData() == "wall" then
         handleBallWallCollision(fixtureA, fixtureB, contact, false)
-    elseif (fixtureB:getUserData() == "ball" or fixtureB:getUserData() == "whiteBall") and fixtureA:getUserData() == "wall" then
+    elseif (fixtureB:getUserData() == "ball") and fixtureA:getUserData() == "wall" then
         handleBallWallCollision(fixtureB, fixtureA, contact, true)
     else
         handleBallBallCollision(fixtureA, fixtureB, contact)
