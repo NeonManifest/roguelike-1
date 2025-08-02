@@ -14,6 +14,7 @@ function love.load()
     balls = {}
     walls = {}
     pockets = {}
+    exile = {}
     tableImage = love.graphics.newImage("sprites/table.png")
     ballImages = {
         whiteBall  = love.graphics.newImage("sprites/bola branca.png"),
@@ -23,6 +24,15 @@ function love.load()
         greenBall  = love.graphics.newImage("sprites/bola VERDE.png"),
         blueBall   = love.graphics.newImage("sprites/bola AZUL.png"),
         violetBall = love.graphics.newImage("sprites/bola VIOLETA.png"),
+    }
+    balltypes = {
+        whiteBall = true,
+        redBall = true,
+        orangeBall = true,
+        yellowBall = true,
+        greenBall = true,
+        blueBall = true,
+        violetBall = true,
     }
     game_start(round)
     love.update = gameUpdate
@@ -45,7 +55,7 @@ function game_start(round)
         local fixture = love.physics.newFixture(body, shape, 1)
         fixture:setFriction(0)
         fixture:setRestitution(0) -- handled manually
-        fixture:setUserData("ball")
+        fixture:setUserData(ballType)
         body:setLinearDamping(0.5)
         return {body=body, shape=shape, type=ballType}
     end
@@ -77,7 +87,7 @@ function game_start(round)
     for i = 1, numBalls do
         local x = love.math.random(minX, maxX)
         local y = love.math.random(minY, maxY)
-        table.insert(balls, makeBall(x, y, radius, "yellowBall"))
+        table.insert(balls, makeBall(x, y, radius, "greenBall"))
     end
     -- Create pockets
     local pocketRadius = 4.5
@@ -119,6 +129,7 @@ end
 
 shotStrength = 0
 hasShot = false
+redPower = true
 function shotStrengthUpdate(dt)
     shotStrength = shotStrength + (dt * 500)
     if shotStrength > 1000 then
@@ -153,6 +164,26 @@ function gameUpdate(dt)
             if distSq < (6 * 6) then
                 ball.body:destroy()
                 table.remove(balls, i)
+                -- Remove all pockets from exile and add them back to pockets
+                for _, ex in ipairs(exile) do table.insert(pockets, ex) end
+                exile = {}
+                if ball.type == "greenBall" then
+                    -- Exile the pocket used
+                    for i, p in ipairs(pockets) do
+                        if p == pocket then
+                            table.insert(exile, p)
+                            table.remove(pockets, i)
+                            break
+                        end
+                    end
+                    -- Exile another random pocket if any remain
+                    if #pockets > 0 then
+                        local randomIndex = love.math.random(1, #pockets)
+                        local randomPocket = pockets[randomIndex]
+                        table.insert(exile, randomPocket)
+                        table.remove(pockets, randomIndex)
+                    end
+                end
                 break
             end
         end
@@ -186,6 +217,7 @@ function love.keypressed(key)
         if love.update == shotUpdate then
             love.update = shotStrengthUpdate
             shotStrength = 0
+            redPower = false
             hasShot = false
         elseif love.update == shotStrengthUpdate and not hasShot then
             local forceMagnitude = shotStrength
@@ -193,6 +225,7 @@ function love.keypressed(key)
             local fy = forceMagnitude * math.sin(shotAngle)
             balls[1].body:applyForce(fx, fy)
             hasShot = true
+            redPower = true -- Reset red power for next shot
             shotStrength = 0
             love.update = gameUpdate
         end
@@ -203,6 +236,10 @@ function love.draw()
     love.graphics.push()
     love.graphics.scale(gameScale, gameScale)
     love.graphics.draw(tableImage, 0, 0)
+    for _, exile in ipairs(exile) do
+        -- Exiled pocket indicator graphic
+    end
+    love.graphics.setColor(1, 1, 1)
     for _, ball in ipairs(balls) do
         img = ballImages[ball.type]
         love.graphics.draw(img, ball.body:getX()-4, ball.body:getY()-4)
@@ -257,6 +294,7 @@ end
 
 function beginContact(fixtureA, fixtureB, contact)
     local function handleBallWallCollision(ballFixture, wallFixture, contact, inverse)
+        local type = ballFixture:type()
         local ballBody = ballFixture:getBody()
         local nx, ny = contact:getNormal()
         -- Flip normal if needed (ensure it points toward ball)
@@ -293,13 +331,35 @@ function beginContact(fixtureA, fixtureB, contact)
         local j = -(1 + e) * relVel / (1/ma + 1/mb)
         -- Apply impulse along the normal
         local jx, jy = j * nx, j * ny
-        ballA:setLinearVelocity(avx - jx/ma, avy - jy/ma)
-        ballB:setLinearVelocity(bvx + jx/mb, bvy + jy/mb)
+        -- If red ball is hitting another ball, apply extra force to both
+        if ballFixtureA:getUserData() == "redBall" and redPower then
+            ballA:setLinearVelocity(avx - 2 * jx/ma, avy - 2 * jy/ma)
+            ballB:setLinearVelocity(bvx + 4 * jx/mb, bvy + 4 * jy/mb)
+            redPower = false
+        else
+            ballA:setLinearVelocity(avx - jx/ma, avy - jy/ma)
+            ballB:setLinearVelocity(bvx + jx/mb, bvy + jy/mb)
+        end
+        -- If the ball that was hit is an orange ball, it will emit a radial force to other nearby balls
+        if ballFixtureA:getUserData() == "orangeBall" or ballFixtureB:getUserData() == "orangeBall" then
+            local radius = 16
+            for _, otherBall in ipairs(balls) do
+                if otherBall.body ~= ballA and otherBall.body ~= ballB then
+                    local ox, oy = otherBall.body:getPosition()
+                    local dx, dy = ox - ax, oy - ay
+                    local distSq = dx*dx + dy*dy
+                    if distSq < radius * radius then
+                        local forceMagnitude = 500 / math.sqrt(distSq)
+                        otherBall.body:applyForce(forceMagnitude * dx, forceMagnitude * dy)
+                    end
+                end
+            end
+        end
     end
     -- Identify which is ball and which is wall
-    if (fixtureA:getUserData() == "ball") and fixtureB:getUserData() == "wall" then
+    if (balltypes[fixtureA:getUserData()]) and fixtureB:getUserData() == "wall" then
         handleBallWallCollision(fixtureA, fixtureB, contact, false)
-    elseif (fixtureB:getUserData() == "ball") and fixtureA:getUserData() == "wall" then
+    elseif (balltypes[fixtureB:getUserData()]) and fixtureA:getUserData() == "wall" then
         handleBallWallCollision(fixtureB, fixtureA, contact, true)
     else
         handleBallBallCollision(fixtureA, fixtureB, contact)
