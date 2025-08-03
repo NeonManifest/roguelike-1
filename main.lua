@@ -67,6 +67,9 @@ function love.load()
         violetToadstool = love.graphics.newImage("sprites/cogumelo violeta 3.png")
     }
     exileMarker = love.graphics.newImage("sprites/x (bloqueio de buraco).png")
+    lifeIcon = love.graphics.newImage("sprites/icone de vida.png")
+    lifeIconEmpty = love.graphics.newImage("sprites/icone de vida  vazio.png")
+    moneyIcon = love.graphics.newImage("sprites/icone money.png")
     player = {
         lives = 3,
         maxLives = 3,
@@ -235,6 +238,13 @@ function game_start(round)
         local body = love.physics.newBody(world, x, y, "dynamic")
         local shape = love.physics.newCircleShape(radius)
         local fixture = love.physics.newFixture(body, shape, 1)
+        if ballType == "blueBall" then
+            fixture:setFriction(0)
+            fixture:setRestitution(0) -- handled manually
+            fixture:setUserData(ballType)
+            body:setLinearDamping(0.25)
+            return {body=body, shape=shape, type=ballType}
+        end
         fixture:setFriction(0)
         fixture:setRestitution(0) -- handled manually
         fixture:setUserData(ballType)
@@ -265,7 +275,7 @@ function game_start(round)
     local y = love.math.random(minY, maxY)
     table.insert(balls, makeBall(x, y, radius, "whiteBall"))
     -- Create other balls
-    local numBalls = math.min(5 + math.floor((round - 1) / 3), 18)
+    local numBalls = math.min(5 + math.floor((round - 1) / 3), 16)
     local ballTypeList = {}
     for ballName in pairs(balltypes) do
         if ballName ~= "whiteBall" then
@@ -294,6 +304,15 @@ function game_start(round)
     makeWall(153, 72, 10, 144)  -- right wall
 end
 
+function loseLife(amount)
+    player.lives = player.lives - amount
+    if player.lives <= 0 then
+        player.lives = 0
+        -- Reset the game state
+        love.load()
+    end
+end
+
 shotAngle = 0
 function setStartingShotAngle()
     -- Set shot angle towards the ball nearest to the white ball, tracing a line between them
@@ -320,6 +339,7 @@ end
 shotStrength = 0
 hasShot = false
 redPower = true
+ballPocketed = true
 function shotStrengthUpdate(dt)
     shotStrength = shotStrength + (dt * 500)
     if shotStrength > 1000 then
@@ -329,6 +349,7 @@ function shotStrengthUpdate(dt)
 end
 
 function shotUpdate(dt)
+    ballPocketed = false
     if love.keyboard.isDown("left") or  love.keyboard.isDown("up") then
         shotAngle = shotAngle - 0.0025  -- Adjust angle counter-clockwise
     elseif love.keyboard.isDown("right") or love.keyboard.isDown("down") then
@@ -352,11 +373,19 @@ function gameUpdate(dt)
             local dx, dy = ballX - px, ballY - py
             local distSq = dx*dx + dy*dy
             if distSq < (6 * 6) then
+                ballPocketed = true
                 ball.body:destroy()
                 table.remove(balls, i)
                 -- Remove all pockets from exile and add them back to pockets
                 for _, ex in ipairs(exile) do table.insert(pockets, ex) end
                 exile = {}
+                if ball.type == "whiteBall" then
+                    -- If the white ball is pocketed, lose a life
+                    loseLife(1)
+                    -- balls[1]'s type changes to "whiteBall" again
+                    balls[1].type = "whiteBall"
+                    return
+                end
                 if ball.type == "greenBall" then
                     -- Exile the pocket used
                     for i, p in ipairs(pockets) do
@@ -394,6 +423,12 @@ function gameUpdate(dt)
             initializeShop()
             love.update = shopUpdate
             return
+        end
+        if not ballPocketed then
+            player.lives = player.lives - 1
+            if player.lives <= 0 then
+                love.load()
+            end
         end
         -- If all balls are stationary, switch to shot update
         love.update = shotUpdate
@@ -520,53 +555,65 @@ end
 function love.draw()
     love.graphics.push()
     love.graphics.scale(gameScale, gameScale)
-if love.update == shopUpdate then
-    local w, h = 160, 144
-    local font = love.graphics.getFont()
-    -- Bottom row items
-    local itemsY = 50
-    local itemCount = #availableItems
-    local spacing = w / (itemCount + 1)
-    for i, item in ipairs(availableItems) do
-        local img = item.graphic
-        local iw, ih = img:getDimensions()
-        local x = spacing * i - iw/2
-        love.graphics.draw(img, x, itemsY)
-        -- Price centered above
-        local priceText = "$" .. item.price()
-        local ptw = font:getWidth(priceText)
-        love.graphics.print(priceText, x + iw/2 - ptw/2, itemsY - 16)
-    end
-    -- Highlight selected item (selectedIndexX only, on bottom row)
-    if selectedIndexY == 2 then
-        local sel = selectedIndexX or 1
-        if availableItems[sel] then
-            local img = availableItems[sel].graphic
-            local iw, ih = img:getDimensions()
-            local x = spacing * sel - iw/2
-            love.graphics.setColor(1, 1, 0, 0.5)
-            love.graphics.rectangle("fill", x, itemsY, iw, ih)
-            love.graphics.setColor(1, 1, 1)
+    -- Render player lives
+    local livesX = 10
+    local livesY = 124
+    local livesIconSize = 8
+    for i = 1, player.maxLives do
+        if i <= player.lives then
+            love.graphics.draw(lifeIcon, livesX + (i-1) * (livesIconSize + 2), livesY, 0, livesIconSize / lifeIcon:getWidth(), livesIconSize / lifeIcon:getHeight())
+        else
+            love.graphics.draw(lifeIconEmpty, livesX + (i-1) * (livesIconSize + 2), livesY, 0, livesIconSize / lifeIconEmpty:getWidth(), livesIconSize / lifeIconEmpty:getHeight())
         end
     end
-    -- Text box with highlighted item info
-    local infoX = 10
-    local infoY = 76
-    local infoWidth = w - 20
-    local infoHeight = 30
-    love.graphics.setColor(0, 0, 0, 0.5)
-    love.graphics.rectangle("fill", infoX, infoY, infoWidth, infoHeight)
-    love.graphics.setColor(1, 1, 1)
-    if selectedIndexY == 2 and availableItems[selectedIndexX] then
-        local item = availableItems[selectedIndexX]
-        love.graphics.printf(item.name, infoX + 5, infoY + 5, infoWidth - 10, "left")
-        love.graphics.printf(item.desc, infoX + 5, infoY + 20, infoWidth - 10, "left")
-    else
-        love.graphics.printf("Select an item to see details", infoX + 5, infoY + 5, infoWidth - 10, "left")
+
+    if love.update == shopUpdate then
+        local w, h = 160, 144
+        local font = love.graphics.getFont()
+        -- Bottom row items
+        local itemsY = 50
+        local itemCount = #availableItems
+        local spacing = w / (itemCount + 1)
+        for i, item in ipairs(availableItems) do
+            local img = item.graphic
+            local iw, ih = img:getDimensions()
+            local x = spacing * i - iw/2
+            love.graphics.draw(img, x, itemsY)
+            -- Price centered above
+            local priceText = "$" .. item.price()
+            local ptw = font:getWidth(priceText)
+            love.graphics.print(priceText, x + iw/2 - ptw/2, itemsY - 16)
+        end
+        -- Highlight selected item (selectedIndexX only, on bottom row)
+        if selectedIndexY == 2 then
+            local sel = selectedIndexX or 1
+            if availableItems[sel] then
+                local img = availableItems[sel].graphic
+                local iw, ih = img:getDimensions()
+                local x = spacing * sel - iw/2
+                love.graphics.setColor(1, 1, 0, 0.5)
+                love.graphics.rectangle("fill", x, itemsY, iw, ih)
+                love.graphics.setColor(1, 1, 1)
+            end
+        end
+        -- Text box with highlighted item info
+        local infoX = 10
+        local infoY = 76
+        local infoWidth = w - 20
+        local infoHeight = 30
+        love.graphics.setColor(0, 0, 0, 0.5)
+        love.graphics.rectangle("fill", infoX, infoY, infoWidth, infoHeight)
+        love.graphics.setColor(1, 1, 1)
+        if selectedIndexY == 2 and availableItems[selectedIndexX] then
+            local item = availableItems[selectedIndexX]
+            love.graphics.printf(item.name, infoX + 5, infoY + 5, infoWidth - 10, "left")
+            love.graphics.printf(item.desc, infoX + 5, infoY + 20, infoWidth - 10, "left")
+        else
+            love.graphics.printf("Select an item to see details", infoX + 5, infoY + 5, infoWidth - 10, "left")
+        end
+        love.graphics.pop()
+        return
     end
-    love.graphics.pop()
-    return
-end
 
     love.graphics.setColor(1,1,1)
     love.graphics.draw(tableImage, 0, 0)
