@@ -273,8 +273,15 @@ function game_start(round)
         end
     end
     for i = 1, numBalls do
+        ::continue::
         local x = love.math.random(minX, maxX)
         local y = love.math.random(minY, maxY)
+        for _, b in ipairs(balls) do
+            local bx, by = b.body:getX(), b.body:getY()
+            if (x-bx)^2 + (y-by)^2 < (radius*2)^2 then
+                goto continue
+            end
+        end
         -- Randomly choose ball type
         local ballType = ballTypeList[love.math.random(1, #ballTypeList)]
         table.insert(balls, makeBall(x, y, radius, ballType))
