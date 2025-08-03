@@ -218,14 +218,15 @@ function love.load()
     local font = love.graphics.newFont("font/EnterCommand-Bold.ttf", 16)
     font:setFilter("nearest")
     love.graphics.setFont(font)
-
-    --initializeShop()
-    --love.update = shopUpdate
+    ignoreKeys = false
+    player.money = 5
     game_start(round)
     love.update = gameUpdate
 end
 
 function game_start(round)
+    world = love.physics.newWorld(0, 0, true)
+    world:setCallbacks(beginContact)
     local function makeWall(x, y, w, h)
         local body = love.physics.newBody(world, x, y, "static")
         local shape = love.physics.newRectangleShape(w, h)
@@ -357,7 +358,7 @@ function shotUpdate(dt)
     elseif love.keyboard.isDown("right") or love.keyboard.isDown("down") then
         shotAngle = shotAngle + 0.0025 -- Adjust angle clockwise
     end
-    if love.keyboard.isDown("space") then
+    if love.keyboard.isDown("space") and not ignoreKeys then
         love.update = shotStrengthUpdate
     end
     -- Update physics world
@@ -385,7 +386,7 @@ function gameUpdate(dt)
                     -- Check if there are nonblack balls in the balls table
                     local hasNonBlackBalls = false
                     for _, b in ipairs(balls) do
-                        if b.type ~= "blackBall" then
+                        if b.type ~= "blackBall" and b.type ~= "whiteBall" then
                             hasNonBlackBalls = true
                             break
                         end
@@ -399,7 +400,9 @@ function gameUpdate(dt)
                     -- If the white ball is pocketed, lose a life
                     loseLife(1)
                     -- balls[1]'s type changes to "whiteBall" again
-                    balls[1].type = "whiteBall"
+                    if balls[1] then
+                        balls[1].type = "whiteBall"
+                    end
                     return
                 end
                 if ball.type == "greenBall" then
@@ -443,10 +446,7 @@ function gameUpdate(dt)
             return
         end
         if not ballPocketed then
-            player.lives = player.lives - 1
-            if player.lives <= 0 then
-                love.load()
-            end
+            player.money = player.money - 1
         end
         -- If all balls are stationary, switch to shot update
         love.update = shotUpdate
@@ -476,6 +476,7 @@ function rerollShop()
             table.insert(availableItems, shopItems[randomIndex])
         end
         player.money = player.money - rerollPrice
+        rerollPrice = math.min(rerollPrice * 2, 99)
         return true
     else
         return false
@@ -497,13 +498,23 @@ function finalizeShop()
     round = round + 1
     -- Reset the game state for the next round
     game_start(round)
+    ignoreKeys = true
     love.update = gameUpdate
 end
 
 function shopUpdate(dt)
 end
 
+function love.keyreleased(key)
+    if key == "space" then
+        ignoreKeys = false
+    end
+end
+
 function love.keypressed(key)
+    if ignoreKeys then
+        return
+    end
     if love.update == shopUpdate then
         local topRowCount = 2  -- buttons count (no items here)
         local bottomRowCount = #availableItems  -- all items on row 2
@@ -542,6 +553,17 @@ function love.keypressed(key)
                 end
             end
         elseif key == "space" then
+            -- Finalize the shop and start the game
+            if selectedIndexY == 1 and selectedIndexX == 1 then
+                finalizeShop()
+                return
+            end
+            -- Reroll the shop items
+            if selectedIndexY == 1 and selectedIndexX == 2 then
+                if rerollShop() then
+                    selectedIndexX = 2 -- Reset selection to first item after reroll
+                end
+            end
             -- Buy the selected item
             if selectedIndexY == 2 and availableItems[selectedIndexX] then
                 local item = availableItems[selectedIndexX]
@@ -554,9 +576,8 @@ function love.keypressed(key)
             end
         end
         return
-    end
     -- Gameplay space handling
-    if key == "space" then
+    elseif key == "space" then
         if love.update == shotUpdate then
             love.update = shotStrengthUpdate
             shotStrength = 0
@@ -582,8 +603,9 @@ function love.draw()
     local moneyX = 130
     local moneyY = 130
     local moneyIconSize = 8
-    love.graphics.draw(moneyIcon, moneyX, moneyY, 0, moneyIconSize / moneyIcon:getWidth(), moneyIconSize / moneyIcon:getHeight())
-    love.graphics.print(player.money, moneyX + moneyIconSize + 2, moneyY - moneyIconSize/2)
+    local scale = moneyIconSize / moneyIcon:getHeight()
+    love.graphics.draw(moneyIcon, moneyX, moneyY, 0, scale, scale)
+    love.graphics.print(player.money, moneyX + moneyIconSize-2, moneyY - moneyIconSize/2 + 0.25)
     -- Render player lives
     local livesX = 10
     local livesY = 130
@@ -595,6 +617,7 @@ function love.draw()
             love.graphics.draw(lifeIconEmpty, livesX + (i-1) * (livesIconSize + 2), livesY, 0, livesIconSize / lifeIconEmpty:getWidth(), livesIconSize / lifeIconEmpty:getHeight())
         end
     end
+    -- Shop rendering
     if love.update == shopUpdate then
         local w, h = 160, 144
         local font = love.graphics.getFont()
@@ -602,6 +625,40 @@ function love.draw()
         local itemsY = 50
         local itemCount = #availableItems
         local spacing = w / (itemCount + 1)
+        local f=love.graphics.getFont()
+        love.graphics.setColor(1,1,1)
+        local t1="Next Round"
+        local t2="Reroll $"..rerollPrice
+        local x1=46-f:getWidth(t1)/2
+        local x2=124-f:getWidth(t2)/2
+        love.graphics.print(t1,x1,10)
+        love.graphics.print(t2,x2,10)
+        if selectedIndexY==1 then
+            local ball=ballImages.whiteBall
+            local bw,bh=ball:getDimensions()
+            local y=math.floor(10+f:getHeight()/2-bh/2)
+            local x=(selectedIndexX==1 and x1 or x2)-bw-2
+            love.graphics.draw(ball,math.floor(x),y,0,1,1)
+        end
+        -- Mark selected item with a white ball
+        if selectedIndexY == 2 then
+            local sel = selectedIndexX or 1
+            if availableItems[sel] then
+                local img = availableItems[sel].graphic
+                local iw, ih = img:getDimensions()
+                local x = spacing * sel - iw/2
+                
+                -- draw the white ball beside the item
+                local whiteBall = ballImages["whiteBall"]
+                local bw, bh = whiteBall:getDimensions()
+
+                -- position the ball to the left of the item, vertically centered
+                local ballX = x - bw - 2       -- 2px padding
+                local ballY = itemsY + (ih/2 - bh/2)
+
+                love.graphics.draw(whiteBall, ballX, ballY)
+            end
+        end
         for i, item in ipairs(availableItems) do
             local img = item.graphic
             local iw, ih = img:getDimensions()
@@ -611,18 +668,6 @@ function love.draw()
             local priceText = "$" .. item.price()
             local ptw = font:getWidth(priceText)
             love.graphics.print(priceText, x + iw/2 - ptw/2, itemsY - 16)
-        end
-        -- Highlight selected item (selectedIndexX only, on bottom row)
-        if selectedIndexY == 2 then
-            local sel = selectedIndexX or 1
-            if availableItems[sel] then
-                local img = availableItems[sel].graphic
-                local iw, ih = img:getDimensions()
-                local x = spacing * sel - iw/2
-                love.graphics.setColor(1, 1, 0, 0.5)
-                love.graphics.rectangle("fill", x, itemsY, iw, ih)
-                love.graphics.setColor(1, 1, 1)
-            end
         end
         -- Text box with highlighted item info
         local infoX = 10
@@ -642,7 +687,6 @@ function love.draw()
         love.graphics.pop()
         return
     end
-
     love.graphics.setColor(1,1,1)
     love.graphics.draw(tableImage, 0, 0)
     for _, exile in ipairs(exile) do
