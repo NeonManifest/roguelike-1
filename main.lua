@@ -34,6 +34,188 @@ function love.load()
         blueBall = true,
         violetBall = true,
     }
+    mushroomImages = {
+        redMushroom = love.graphics.newImage("sprites/cogumelo grande vermelho 1.png"),
+        redToadstool = love.graphics.newImage("sprites/cogumelo grande vermelho 2.png"),
+        redAgaric = love.graphics.newImage("sprites/cogumelo grande vermelho 3.png"),
+        orangeMushroom = love.graphics.newImage("sprites/cogumelo grande violeta 3.png"),
+        orangeToadstool = love.graphics.newImage("sprites/cogumelo grande violeta 3.png"),
+        orangeAgaric = love.graphics.newImage("sprites/cogumelo grande violeta 3.png"),
+        yellowMushroom = love.graphics.newImage("sprites/cogumelo grande amarelo 1.png"),
+        yellowToadstool = love.graphics.newImage("sprites/cogumelo grande amarelo 2.png"),
+        yellowAgaric = love.graphics.newImage("sprites/cogumelo grande amarelo 3.png"),
+        greenMushroom = love.graphics.newImage("sprites/cogumelo grande verde 1.png"),
+        blueMushroom = love.graphics.newImage("sprites/cogumelo grande violeta 3.png"),
+        blueToadstool = love.graphics.newImage("sprites/cogumelo grande violeta 3.png"),
+        violetMushroom = love.graphics.newImage("sprites/cogumelo grande violeta 1.png"),
+        violetToadstool = love.graphics.newImage("sprites/cogumelo grande violeta 2.png"),
+    }
+    mushroomThumbnails = {
+        redMushroom = love.graphics.newImage("sprites/cogumelo vermelho 1.png"),
+        redToadstool = love.graphics.newImage("sprites/cogumelo vermelho 2.png"),
+        redAgaric = love.graphics.newImage("sprites/cogumelo vermelho 3.png"),
+        orangeMushroom = love.graphics.newImage("sprites/cogumelo laranja 1.png"),
+        orangeToadstool = love.graphics.newImage("sprites/cogumelo laranja 2.png"),
+        orangeAgaric = love.graphics.newImage("sprites/cogumelo laranja 3 .png"),
+        yellowMushroom = love.graphics.newImage("sprites/cogumelo amarelo 1.png"),
+        yellowToadstool = love.graphics.newImage("sprites/cogumelo amarelo 2.png"),
+        yellowAgaric = love.graphics.newImage("sprites/cogumelo amarelo 3.png"),
+        greenMushroom = love.graphics.newImage("sprites/cogumelo verde 1.png"),
+        blueMushroom = love.graphics.newImage("sprites/cogumelo azul 1.png"),
+        blueToadstool = love.graphics.newImage("sprites/cogumelo azul 2.png"),
+        violetMushroom = love.graphics.newImage("sprites/cogumelo violeta 2.png"),
+        violetToadstool = love.graphics.newImage("sprites/cogumelo violeta 3.png")
+    }
+    exileMarker = love.graphics.newImage("sprites/x (bloqueio de buraco).png")
+    player = {
+        lives = 3,
+        maxLives = 3,
+        score = 0,
+        money = 0,
+        moneyPerBall = 1,
+        moneyPerPrizePocket = 1,
+        strength = 1,
+        priceMod = 0,
+        mushrooms = {},
+        redDrop = 1,
+        orangeDrop = 1,
+        yellowDrop = 1,
+        greenDrop = 1,
+        blueDrop = 1,
+        violetDrop = 1,
+        redBallPower = 1,
+        orangeBallPower = 1,
+        moneyPerRound = 0,
+        ballDampingModifier = 1,
+        ballRestitutionModifier = 1,
+        violetBallPower = 1,
+        violetBallSpread = 1
+    }
+
+    shopItems = {
+        {
+            name = "Red Mushroom",
+            desc = "+10% strength",
+            graphic = mushroomImages.redMushroom,
+            thumbnail = mushroomThumbnails.redMushroom,
+            price = function() return 3 + player.priceMod end,
+            effect = function() player.strength = player.strength * 1.1 end
+        },
+        {
+            name = "Red Toadstool",
+            desc = "Increases red ball power",
+            graphic = mushroomImages.redToadstool,
+            thumbnail = mushroomThumbnails.redToadstool,
+            price = function() return 4 + player.priceMod end,
+            effect = function() player.redBallPower = player.redBallPower + 0.25 end
+        },
+        {
+            name = "Red Agaric",
+            desc = "Red balls appear more often",
+            graphic = mushroomImages.redAgaric,
+            thumbnail = mushroomThumbnails.redAgaric,
+            price = function() return 5 + player.priceMod end,
+            effect = function() player.redDrop = player.redDrop + 1 end
+        },
+        {
+            name = "Orange Mushroom",
+            desc = "+1 Max Lives",
+            graphic = mushroomImages.orangeMushroom,
+            thumbnail = mushroomThumbnails.orangeMushroom,
+            price = function() return 4 + player.priceMod end,
+            effect = function()
+                player.maxLives = player.maxLives + 1
+                player.lives = player.lives + 1
+            end
+        },
+        {
+            name = "Orange Toadstool",
+            desc = "Increases orange ball power",
+            graphic = mushroomImages.orangeToadstool,
+            thumbnail = mushroomThumbnails.orangeToadstool,
+            price = function() return 4 + player.priceMod end,
+            effect = function() player.orangeBallPower = player.orangeBallPower + 0.25 end
+        },
+        {
+            name = "Orange Agaric",
+            desc = "Orange balls appear more often",
+            graphic = mushroomImages.orangeAgaric,
+            thumbnail = mushroomThumbnails.orangeAgaric,
+            price = function() return 5 + player.priceMod end,
+            effect = function() player.orangeDrop = player.orangeDrop + 1 end
+        },
+        {
+            name = "Yellow Mushroom",
+            desc = "Gain +1$ money per round",
+            graphic = mushroomImages.yellowMushroom,
+            thumbnail = mushroomThumbnails.yellowMushroom,
+            price = function() return 2 + player.priceMod end,
+            effect = function() player.moneyPerRound = player.moneyPerRound + 1 end
+        },
+        {
+            name = "Yellow Toadstool",
+            desc = "Gain +$1 money per ball pocketed",
+            graphic = mushroomImages.yellowToadstool,
+            thumbnail = mushroomThumbnails.yellowToadstool,
+            price = function() return 2 + player.priceMod end,
+            effect = function() player.moneyPerBall = (player.moneyPerBall or 0) + 1 end
+        },
+        {
+            name = "Yellow Agaric",
+            desc = "Gain +$2 money per prize pocket",
+            graphic = mushroomImages.yellowAgaric,
+            thumbnail = mushroomThumbnails.yellowAgaric,
+            price = function() return 2 + player.priceMod end,
+            effect = function() player.moneyPerPrizePocket = player.moneyPerPrizePocket + 2 end
+        },
+        {
+            name = "Green Mushroom",
+            desc = "Gain +$2 money per prize pocket",
+            graphic = mushroomImages.greenMushroom,
+            thumbnail = mushroomThumbnails.greenMushroom,
+            price = function() return 2 + player.priceMod end,
+            effect = function() player.lives = math.min(player.lives + 1, player.maxLives) end
+        },
+        {
+            name = "Blue Mushroom",
+            desc = "Reduces friction",
+            graphic = mushroomImages.blueMushroom,
+            thumbnail = mushroomThumbnails.blueMushroom,
+            price = function() return 4 + player.priceMod end,
+            effect = function() player.ballDampingModifier = player.ballDampingModifier * 1.1 end
+        },
+        {
+            name = "Blue Toadstool",
+            desc = "Makes every ball bouncier",
+            graphic = mushroomImages.blueToadstool,
+            thumbnail = mushroomThumbnails.blueToadstool,
+            price = function() return 4 + player.priceMod end,
+            effect = function() player.ballRestitutionModifier = player.ballRestitutionModifier * 1.1 end
+        },
+        {
+            name = "Violet Mushroom",
+            desc = "Gives violet balls red power",
+            graphic = mushroomImages.violetMushroom,
+            thumbnail = mushroomThumbnails.violetMushroom,
+            price = function() return 5 + player.priceMod end,
+            effect = function() player.violetBallPower = player.violetBallPower + 0.25 end
+        },
+        {
+            name = "Violet Toadstool",
+            desc = "Gives violet balls orange power",
+            graphic = mushroomImages.violetToadstool,
+            thumbnail = mushroomThumbnails.violetToadstool,
+            price = function() return 5 + player.priceMod end,
+            effect = function() player.violetBallSpread = player.violetBallSpread * 0.25 end
+        }
+    }
+
+    local font = love.graphics.newFont("font/EnterCommand-Bold.ttf", 16)
+    font:setFilter("nearest")
+    love.graphics.setFont(font)
+
+    --initializeShop()
+    --love.update = shopUpdate
     game_start(round)
     love.update = gameUpdate
 end
@@ -84,10 +266,18 @@ function game_start(round)
     table.insert(balls, makeBall(x, y, radius, "whiteBall"))
     -- Create other balls
     local numBalls = math.min(5 + math.floor((round - 1) / 3), 18)
+    local ballTypeList = {}
+    for ballName in pairs(balltypes) do
+        if ballName ~= "whiteBall" then
+            table.insert(ballTypeList, ballName)
+        end
+    end
     for i = 1, numBalls do
         local x = love.math.random(minX, maxX)
         local y = love.math.random(minY, maxY)
-        table.insert(balls, makeBall(x, y, radius, "greenBall"))
+        -- Randomly choose ball type
+        local ballType = ballTypeList[love.math.random(1, #ballTypeList)]
+        table.insert(balls, makeBall(x, y, radius, ballType))
     end
     -- Create pockets
     local pocketRadius = 4.5
@@ -201,8 +391,8 @@ function gameUpdate(dt)
     if allStationary then
         -- If there is only one ball left, start another round
         if #balls == 1 then
-            round = round + 1
-            game_start(round)
+            initializeShop()
+            love.update = shopUpdate
             return
         end
         -- If all balls are stationary, switch to shot update
@@ -212,7 +402,102 @@ function gameUpdate(dt)
     end
 end
 
+rerollPrice = 3
+availableItems = {}
+selectedIndexX = 2
+selectedIndexY = 2
+function initializeShop()
+    rerollPrice = 3
+    availableItems = {}
+    for i = 1, 3 do
+        local randomIndex = love.math.random(1, #shopItems)
+        table.insert(availableItems, shopItems[randomIndex])
+    end
+end
+
+function rerollShop()
+    if player.money >= rerollPrice then
+        availableItems = {}
+        for i = 1, 3 do
+            local randomIndex = love.math.random(1, #shopItems)
+            table.insert(availableItems, shopItems[randomIndex])
+        end
+        player.money = player.money - rerollPrice
+        return true
+    else
+        return false
+    end
+end
+
+function buy(item)
+    if player.money >= item.price() then
+        item.effect()
+        player.money = player.money - item.price()
+        player.priceMod = player.priceMod + 1 -- Increase price for next items
+        return true
+    else
+        return false 
+    end
+end
+
+function finalizeShop()
+    round = round + 1
+    -- Reset the game state for the next round
+    game_start(round)
+    love.update = gameUpdate
+end
+
+function shopUpdate(dt)
+end
+
 function love.keypressed(key)
+    if love.update == shopUpdate then
+        local topRowCount = 2  -- buttons count (no items here)
+        local bottomRowCount = #availableItems  -- all items on row 2
+
+        if key == "left" then
+            if selectedIndexY == 1 then
+                -- toggle between 1 and 2 for buttons
+                selectedIndexX = 3 - selectedIndexX
+            elseif selectedIndexY == 2 and bottomRowCount > 0 then
+                selectedIndexX = selectedIndexX - 1
+                if selectedIndexX < 1 then
+                    selectedIndexX = bottomRowCount -- wrap left
+                end
+            end
+
+        elseif key == "right" then
+            if selectedIndexY == 1 then
+                selectedIndexX = 3 - selectedIndexX
+            elseif selectedIndexY == 2 and bottomRowCount > 0 then
+                selectedIndexX = selectedIndexX + 1
+                if selectedIndexX > bottomRowCount then
+                    selectedIndexX = 1 -- wrap right
+                end
+            end
+
+        elseif key == "down" then
+            if selectedIndexY == 1 and bottomRowCount > 0 then
+                selectedIndexY = 2
+                selectedIndexX = math.floor((bottomRowCount + 1) / 2)
+            end
+
+        elseif key == "up" then
+            if selectedIndexY == 2 then
+                selectedIndexY = 1
+                local midpoint = math.ceil(bottomRowCount / 2)
+                if selectedIndexX <= midpoint then
+                    selectedIndexX = 1
+                else
+                    selectedIndexX = 2
+                end
+            end
+        end
+
+        return
+    end
+
+
     if key == "space" then
         if love.update == shotUpdate then
             love.update = shotStrengthUpdate
@@ -235,9 +520,59 @@ end
 function love.draw()
     love.graphics.push()
     love.graphics.scale(gameScale, gameScale)
+if love.update == shopUpdate then
+    local w, h = 160, 144
+    local font = love.graphics.getFont()
+    -- Bottom row items
+    local itemsY = 50
+    local itemCount = #availableItems
+    local spacing = w / (itemCount + 1)
+    for i, item in ipairs(availableItems) do
+        local img = item.graphic
+        local iw, ih = img:getDimensions()
+        local x = spacing * i - iw/2
+        love.graphics.draw(img, x, itemsY)
+        -- Price centered above
+        local priceText = "$" .. item.price()
+        local ptw = font:getWidth(priceText)
+        love.graphics.print(priceText, x + iw/2 - ptw/2, itemsY - 16)
+    end
+    -- Highlight selected item (selectedIndexX only, on bottom row)
+    if selectedIndexY == 2 then
+        local sel = selectedIndexX or 1
+        if availableItems[sel] then
+            local img = availableItems[sel].graphic
+            local iw, ih = img:getDimensions()
+            local x = spacing * sel - iw/2
+            love.graphics.setColor(1, 1, 0, 0.5)
+            love.graphics.rectangle("fill", x, itemsY, iw, ih)
+            love.graphics.setColor(1, 1, 1)
+        end
+    end
+    -- Text box with highlighted item info
+    local infoX = 10
+    local infoY = 76
+    local infoWidth = w - 20
+    local infoHeight = 30
+    love.graphics.setColor(0, 0, 0, 0.5)
+    love.graphics.rectangle("fill", infoX, infoY, infoWidth, infoHeight)
+    love.graphics.setColor(1, 1, 1)
+    if selectedIndexY == 2 and availableItems[selectedIndexX] then
+        local item = availableItems[selectedIndexX]
+        love.graphics.printf(item.name, infoX + 5, infoY + 5, infoWidth - 10, "left")
+        love.graphics.printf(item.desc, infoX + 5, infoY + 20, infoWidth - 10, "left")
+    else
+        love.graphics.printf("Select an item to see details", infoX + 5, infoY + 5, infoWidth - 10, "left")
+    end
+    love.graphics.pop()
+    return
+end
+
+    love.graphics.setColor(1,1,1)
     love.graphics.draw(tableImage, 0, 0)
     for _, exile in ipairs(exile) do
         -- Exiled pocket indicator graphic
+        love.graphics.draw(exileMarker, exile.body:getX() - 3, exile.body:getY() - 3)
     end
     love.graphics.setColor(1, 1, 1)
     for _, ball in ipairs(balls) do
@@ -326,7 +661,7 @@ function beginContact(fixtureA, fixtureB, contact)
         local relVel = (bvx - avx) * nx + (bvy - avy) * ny
         if relVel > 0 then return end -- balls are separating
         -- Coefficient of restitution (1 = perfectly bouncy)
-        local e = 0.8
+        local e = 0.95
         -- Impulse scalar
         local j = -(1 + e) * relVel / (1/ma + 1/mb)
         -- Apply impulse along the normal
