@@ -4,7 +4,7 @@ function love.load()
     world = love.physics.newWorld(0, 0, true)
 
     -- Register collision callback
-    world:setCallbacks(beginContact)
+    --world:setCallbacks(beginContact)
 
     gameCanvas = love.graphics.newCanvas(160, 144)
     local scale = 3
@@ -15,6 +15,7 @@ function love.load()
     walls = {}
     pockets = {}
     exile = {}
+    prizePocket = nil
     tableImage = love.graphics.newImage("sprites/table.png")
     ballImages = {
         whiteBall  = love.graphics.newImage("sprites/bola branca.png"),
@@ -40,14 +41,14 @@ function love.load()
         redMushroom = love.graphics.newImage("sprites/cogumelo grande vermelho 1.png"),
         redToadstool = love.graphics.newImage("sprites/cogumelo grande vermelho 2.png"),
         redAgaric = love.graphics.newImage("sprites/cogumelo grande vermelho 3.png"),
-        orangeMushroom = love.graphics.newImage("sprites/cogumelo grande violeta 3.png"),
+        orangeMushroom = love.graphics.newImage("sprites/cogumelo grande verde 2.png"),
         orangeToadstool = love.graphics.newImage("sprites/cogumelo grande violeta 3.png"),
         orangeAgaric = love.graphics.newImage("sprites/cogumelo grande violeta 3.png"),
         yellowMushroom = love.graphics.newImage("sprites/cogumelo grande amarelo 1.png"),
         yellowToadstool = love.graphics.newImage("sprites/cogumelo grande amarelo 2.png"),
         yellowAgaric = love.graphics.newImage("sprites/cogumelo grande amarelo 3.png"),
         greenMushroom = love.graphics.newImage("sprites/cogumelo grande verde 1.png"),
-        blueMushroom = love.graphics.newImage("sprites/cogumelo grande violeta 3.png"),
+        blueMushroom = love.graphics.newImage("sprites/cogumelo grande verde 3.png"),
         blueToadstool = love.graphics.newImage("sprites/cogumelo grande violeta 3.png"),
         violetMushroom = love.graphics.newImage("sprites/cogumelo grande violeta 1.png"),
         violetToadstool = love.graphics.newImage("sprites/cogumelo grande violeta 2.png"),
@@ -56,15 +57,15 @@ function love.load()
         redMushroom = love.graphics.newImage("sprites/cogumelo vermelho 1.png"),
         redToadstool = love.graphics.newImage("sprites/cogumelo vermelho 2.png"),
         redAgaric = love.graphics.newImage("sprites/cogumelo vermelho 3.png"),
-        orangeMushroom = love.graphics.newImage("sprites/cogumelo laranja 1.png"),
+        orangeMushroom = love.graphics.newImage("sprites/cogumelo verde 1.png"),
         orangeToadstool = love.graphics.newImage("sprites/cogumelo laranja 2.png"),
         orangeAgaric = love.graphics.newImage("sprites/cogumelo laranja 3 .png"),
         yellowMushroom = love.graphics.newImage("sprites/cogumelo amarelo 1.png"),
         yellowToadstool = love.graphics.newImage("sprites/cogumelo amarelo 2.png"),
         yellowAgaric = love.graphics.newImage("sprites/cogumelo amarelo 3.png"),
         greenMushroom = love.graphics.newImage("sprites/cogumelo verde 1.png"),
-        blueMushroom = love.graphics.newImage("sprites/cogumelo azul 1.png"),
-        blueToadstool = love.graphics.newImage("sprites/cogumelo azul 2.png"),
+        blueMushroom = love.graphics.newImage("sprites/cogumelo verde 3.png"),
+        blueToadstool = love.graphics.newImage("sprites/cogumelo violeta 3 .png"),
         violetMushroom = love.graphics.newImage("sprites/cogumelo violeta 2.png"),
         violetToadstool = love.graphics.newImage("sprites/cogumelo violeta 3.png")
     }
@@ -72,13 +73,14 @@ function love.load()
     lifeIcon = love.graphics.newImage("sprites/icone de vida.png")
     lifeIconEmpty = love.graphics.newImage("sprites/icone de vida  vazio.png")
     moneyIcon = love.graphics.newImage("sprites/icone money.png")
+    prizePocketMarker = love.graphics.newImage("sprites/cogumelo laranja 1.png")
     player = {
         lives = 3,
         maxLives = 3,
         score = 0,
         money = 0,
         moneyPerBall = 1,
-        moneyPerPrizePocket = 1,
+        moneyPerPrizePocket = 10,
         strength = 1,
         priceMod = 0,
         mushrooms = {},
@@ -90,7 +92,7 @@ function love.load()
         violetDrop = 1,
         redBallPower = 1,
         orangeBallPower = 1,
-        moneyPerRound = 0,
+        moneyPerRound = 1,
         ballDampingModifier = 1,
         ballRestitutionModifier = 1,
         violetBallPower = 1,
@@ -100,11 +102,11 @@ function love.load()
     shopItems = {
         {
             name = "Red Mushroom",
-            desc = "+10% strength",
+            desc = "+25% strength",
             graphic = mushroomImages.redMushroom,
             thumbnail = mushroomThumbnails.redMushroom,
             price = function() return 3 + player.priceMod end,
-            effect = function() player.strength = player.strength * 1.1 end
+            effect = function() player.strength = player.strength * 1.25 end
         },
         {
             name = "Red Toadstool",
@@ -112,18 +114,10 @@ function love.load()
             graphic = mushroomImages.redToadstool,
             thumbnail = mushroomThumbnails.redToadstool,
             price = function() return 4 + player.priceMod end,
-            effect = function() player.redBallPower = player.redBallPower + 0.25 end
+            effect = function() player.redBallPower = player.redBallPower + 0.5 end
         },
         {
-            name = "Red Agaric",
-            desc = "Red balls appear more often",
-            graphic = mushroomImages.redAgaric,
-            thumbnail = mushroomThumbnails.redAgaric,
-            price = function() return 5 + player.priceMod end,
-            effect = function() player.redDrop = player.redDrop + 1 end
-        },
-        {
-            name = "Orange Mushroom",
+            name = "Green Toadstool",
             desc = "+1 Max Lives",
             graphic = mushroomImages.orangeMushroom,
             thumbnail = mushroomThumbnails.orangeMushroom,
@@ -134,20 +128,12 @@ function love.load()
             end
         },
         {
-            name = "Orange Toadstool",
-            desc = "Increases orange ball power",
-            graphic = mushroomImages.orangeToadstool,
-            thumbnail = mushroomThumbnails.orangeToadstool,
+            name = "Red Agaric",
+            desc = "Increases orange ball spread radius",
+            graphic = mushroomImages.redAgaric,
+            thumbnail = mushroomThumbnails.redAgaric,
             price = function() return 4 + player.priceMod end,
-            effect = function() player.orangeBallPower = player.orangeBallPower + 0.25 end
-        },
-        {
-            name = "Orange Agaric",
-            desc = "Orange balls appear more often",
-            graphic = mushroomImages.orangeAgaric,
-            thumbnail = mushroomThumbnails.orangeAgaric,
-            price = function() return 5 + player.priceMod end,
-            effect = function() player.orangeDrop = player.orangeDrop + 1 end
+            effect = function() player.orangeBallPower = player.orangeBallPower + 0.1 end
         },
         {
             name = "Yellow Mushroom",
@@ -175,22 +161,22 @@ function love.load()
         },
         {
             name = "Green Mushroom",
-            desc = "Gain +$2 money per prize pocket",
+            desc = "Heals 3 lost lives",
             graphic = mushroomImages.greenMushroom,
             thumbnail = mushroomThumbnails.greenMushroom,
             price = function() return 2 + player.priceMod end,
-            effect = function() player.lives = math.min(player.lives + 1, player.maxLives) end
+            effect = function() player.lives = math.min(player.lives + 3, player.maxLives) end
         },
         {
-            name = "Blue Mushroom",
-            desc = "Reduces friction",
+            name = "Green Agaric",
+            desc = "Reduces table friction",
             graphic = mushroomImages.blueMushroom,
             thumbnail = mushroomThumbnails.blueMushroom,
             price = function() return 4 + player.priceMod end,
-            effect = function() player.ballDampingModifier = player.ballDampingModifier * 1.1 end
+            effect = function() player.ballDampingModifier = player.ballDampingModifier * 0.95 end
         },
         {
-            name = "Blue Toadstool",
+            name = "Violet Agaric",
             desc = "Makes every ball bouncier",
             graphic = mushroomImages.blueToadstool,
             thumbnail = mushroomThumbnails.blueToadstool,
@@ -199,7 +185,7 @@ function love.load()
         },
         {
             name = "Violet Mushroom",
-            desc = "Gives violet balls red power",
+            desc = "Gives violet balls more red power",
             graphic = mushroomImages.violetMushroom,
             thumbnail = mushroomThumbnails.violetMushroom,
             price = function() return 5 + player.priceMod end,
@@ -207,7 +193,7 @@ function love.load()
         },
         {
             name = "Violet Toadstool",
-            desc = "Gives violet balls orange power",
+            desc = "Gives violet balls more orange power",
             graphic = mushroomImages.violetToadstool,
             thumbnail = mushroomThumbnails.violetToadstool,
             price = function() return 5 + player.priceMod end,
@@ -226,7 +212,6 @@ end
 
 function game_start(round)
     world = love.physics.newWorld(0, 0, true)
-    world:setCallbacks(beginContact)
     local function makeWall(x, y, w, h)
         local body = love.physics.newBody(world, x, y, "static")
         local shape = love.physics.newRectangleShape(w, h)
@@ -245,13 +230,13 @@ function game_start(round)
             fixture:setFriction(0)
             fixture:setRestitution(0) -- handled manually
             fixture:setUserData(ballType)
-            body:setLinearDamping(0.25)
+            body:setLinearDamping(0.3 * player.ballDampingModifier)
             return {body=body, shape=shape, type=ballType}
         end
         fixture:setFriction(0)
         fixture:setRestitution(0) -- handled manually
         fixture:setUserData(ballType)
-        body:setLinearDamping(0.5)
+        body:setLinearDamping(0.6 * player.ballDampingModifier)
         return {body=body, shape=shape, type=ballType}
     end
 
@@ -267,6 +252,8 @@ function game_start(round)
     balls = {}
     walls = {}
     pockets = {}
+    exile = {}
+    prizePocket = nil
 
     local radius = 4
     local minX = 10 + 10/2 + radius
@@ -300,11 +287,14 @@ function game_start(round)
     makePocket(146, 104, pocketRadius) -- bottom-right
     makePocket(80, 45, pocketRadius)   -- top-center
     makePocket(80, 105, pocketRadius)  -- bottom-center
+    --Mark a random pocket as prize pocket
+    prizePocket = pockets[love.math.random(1,#pockets)]
     -- Create walls around the table
     makeWall(80, 39, 160, 10)   -- top wall
     makeWall(80, 111, 160, 10)  -- bottom wall
     makeWall(7, 72, 10, 144)    -- left wall
     makeWall(153, 72, 10, 144)  -- right wall
+    world:setCallbacks(beginContact)
 end
 
 function loseLife(amount)
@@ -319,6 +309,9 @@ end
 shotAngle = 0
 function setStartingShotAngle()
     -- Set shot angle towards the ball nearest to the white ball, tracing a line between them
+    if not balls[1] then
+        return
+    end
     local whiteBallBody = balls[1].body
     local nearestBall = nil
     local nearestDistance = math.huge
@@ -345,7 +338,7 @@ redPower = true
 ballPocketed = true
 function shotStrengthUpdate(dt)
     shotStrength = shotStrength + (dt * 500)
-    if shotStrength > 1000 then
+    if shotStrength > (1000 * player.strength) then
         shotStrength = 0
     end
     world:update(dt)
@@ -382,6 +375,11 @@ function gameUpdate(dt)
                 -- Remove all pockets from exile and add them back to pockets
                 for _, ex in ipairs(exile) do table.insert(pockets, ex) end
                 exile = {}
+                if pocket == prizePocket and ball.type ~= "whiteBall" then
+                    player.money = player.money + player.moneyPerPrizePocket
+                    player.score = player.score + 50 * (1+round)
+                    prizePocket = pockets[love.math.random(1, #pockets)]
+                end
                 if ball.type == "blackBall" then
                     -- Check if there are nonblack balls in the balls table
                     local hasNonBlackBalls = false
@@ -394,6 +392,9 @@ function gameUpdate(dt)
                     -- If there are nonblack balls, lose a life
                     if hasNonBlackBalls then
                         loseLife(1)
+                    else
+                        player.money = player.money + player.moneyPerBall
+                        player.score = player.score + 100 * (1+round)
                     end
                 end
                 if ball.type == "whiteBall" then
@@ -405,7 +406,7 @@ function gameUpdate(dt)
                     end
                     return
                 end
-                if ball.type == "greenBall" then
+                if ball.type == "greenBall" or ball.type == "violetBall" then
                     -- Exile the pocket used
                     for i, p in ipairs(pockets) do
                         if p == pocket then
@@ -422,7 +423,10 @@ function gameUpdate(dt)
                         table.remove(pockets, randomIndex)
                     end
                 end
-                player.money = player.money + player.moneyPerBall
+                if ball.type ~= "whiteBall" and ball.type ~= "blackBall" then
+                    player.money = player.money + player.moneyPerBall
+                    player.score = player.score + 100 * (1+round)
+                end
                 break
             end
         end
@@ -488,6 +492,7 @@ function buy(item)
         item.effect()
         player.money = player.money - item.price()
         player.priceMod = player.priceMod + 1 -- Increase price for next items
+        table.insert(player.mushrooms,item.thumbnail)
         return true
     else
         return false 
@@ -596,6 +601,22 @@ function love.keypressed(key)
     end
 end
 
+function formatScore(score)
+    if score >= 10000000000 then
+        -- 10 billion or more -> "a lot"
+        return "a lot"
+    elseif score >= 10000000 then
+        -- 10,000,000 to 9,999,999,999 -> millions
+        return string.format("%04dM", math.floor(score / 1000000))
+    elseif score >= 100000 then
+        -- 100,000 to 9,999,999 -> thousands
+        return string.format("%04dK", math.floor(score / 1000))
+    else
+        -- 0 to 99,999 -> 5 digits
+        return string.format("%05d", score)
+    end
+end
+
 function love.draw()
     love.graphics.push()
     love.graphics.scale(gameScale, gameScale)
@@ -688,7 +709,20 @@ function love.draw()
         return
     end
     love.graphics.setColor(1,1,1)
+    -- Show round number and score
+    love.graphics.print("Round "..round, 6, 2)
+    love.graphics.print("Score " .. formatScore(player.score), 80, 2)
+    -- Show player's mushroom collection!
+    local maxWidth, baseSpacing, startX, startY = 134, 9, 8, 18
+    local total = #player.mushrooms
+    local spacing = math.min(baseSpacing, maxWidth / math.max(total-1, 1))
+    for i, mushroom in ipairs(player.mushrooms) do
+        love.graphics.draw(mushroom, startX + (i-1)*spacing, startY)
+    end
     love.graphics.draw(tableImage, 0, 0)
+    if prizePocket then
+        love.graphics.draw(prizePocketMarker, prizePocket.body:getX() - 4, prizePocket.body:getY() - 8)
+    end
     for _, exile in ipairs(exile) do
         -- Exiled pocket indicator graphic
         love.graphics.draw(exileMarker, exile.body:getX() - 3, exile.body:getY() - 3)
@@ -698,7 +732,7 @@ function love.draw()
         img = ballImages[ball.type]
         love.graphics.draw(img, ball.body:getX()-4, ball.body:getY()-4)
     end
-    if love.update == shotUpdate or love.update == shotStrengthUpdate then
+    if (love.update == shotUpdate or love.update == shotStrengthUpdate) and balls[1] then
         local whiteBallBody = balls[1].body
         local lineLength = 160
         local startX = whiteBallBody:getX()
@@ -731,13 +765,13 @@ function love.draw()
         local startY = whiteBallBody:getY()
         -- draw shot strength bar
         local barWidth = 4
-        local barHeight = 20
+        local barHeight = 20 * player.strength
         local barX = startX + 5
         local barY = startY - barHeight
         love.graphics.setColor(0, 0, 0)
         love.graphics.rectangle("fill", barX, barY, barWidth, barHeight)
         love.graphics.setColor(1, 0, 0)
-        local filledHeight = (shotStrength / 1000) * barHeight
+        local filledHeight = (shotStrength / (player.strength*1000)) * barHeight
         love.graphics.rectangle("fill", barX, barY + barHeight - filledHeight, barWidth, filledHeight)
         love.graphics.setColor(1, 1, 1)
         love.graphics.rectangle("line", barX, barY, barWidth, barHeight)
@@ -780,31 +814,47 @@ function beginContact(fixtureA, fixtureB, contact)
         local relVel = (bvx - avx) * nx + (bvy - avy) * ny
         if relVel > 0 then return end -- balls are separating
         -- Coefficient of restitution (1 = perfectly bouncy)
-        local e = 0.95
+        local e = 0.95 * player.ballRestitutionModifier
         -- Impulse scalar
         local j = -(1 + e) * relVel / (1/ma + 1/mb)
         -- Apply impulse along the normal
         local jx, jy = j * nx, j * ny
-        -- If red ball is hitting another ball, apply extra force to both
-        if ballFixtureA:getUserData() == "redBall" and redPower then
-            ballA:setLinearVelocity(avx - 2 * jx/ma, avy - 2 * jy/ma)
-            ballB:setLinearVelocity(bvx + 4 * jx/mb, bvy + 4 * jy/mb)
+        local ballTypeA = ballFixtureA:getUserData()
+        local ballTypeB = ballFixtureB:getUserData()
+        -- Special collision force
+        if ballTypeA == "redBall" and redPower then
+            ballA:setLinearVelocity(avx-(3*player.redBallPower)*jx/ma, avy-(3*player.redBallPower)*jy/ma)
+            ballB:setLinearVelocity(bvx+(3*player.redBallPower)*jx/mb, bvy+(3*player.redBallPower)*jy/mb)
             redPower = false
+        elseif ballTypeA == "violetBall" and violetPower then
+            ballA:setLinearVelocity(avx-(3*player.violetBallPower)*jx/ma, avy-(3*player.violetBallPower)*jy/ma)
+            ballB:setLinearVelocity(bvx+(3*player.violetBallPower)*jx/mb, bvy+(3*player.violetBallPower)*jy/mb)
+            violetPower = false
         else
-            ballA:setLinearVelocity(avx - jx/ma, avy - jy/ma)
-            ballB:setLinearVelocity(bvx + jx/mb, bvy + jy/mb)
+            ballA:setLinearVelocity(avx-jx/ma, avy-jy/ma)
+            ballB:setLinearVelocity(bvx+jx/mb, bvy+jy/mb)
         end
-        -- If the ball that was hit is an orange ball, it will emit a radial force to other nearby balls
-        if ballFixtureA:getUserData() == "orangeBall" or ballFixtureB:getUserData() == "orangeBall" then
-            local radius = 16
+        -- Radial force for orange/violet
+        local triggerOrange = (ballTypeA == "orangeBall" or ballTypeB == "orangeBall")
+        local triggerViolet = (ballTypeA == "violetBall" or ballTypeB == "violetBall")
+        if triggerOrange or triggerViolet then
+            local radiusOrange = 16*player.orangeBallPower
+            local radiusViolet = 16*player.violetBallSpread
             for _, otherBall in ipairs(balls) do
                 if otherBall.body ~= ballA and otherBall.body ~= ballB then
                     local ox, oy = otherBall.body:getPosition()
-                    local dx, dy = ox - ax, oy - ay
+                    local dx, dy = ox-ax, oy-ay
                     local distSq = dx*dx + dy*dy
-                    if distSq < radius * radius then
+
+                    -- Orange effect
+                    if triggerOrange and distSq < radiusOrange*radiusOrange then
                         local forceMagnitude = 500 / math.sqrt(distSq)
-                        otherBall.body:applyForce(forceMagnitude * dx, forceMagnitude * dy)
+                        otherBall.body:applyForce(forceMagnitude*dx, forceMagnitude*dy)
+                    end
+                    -- Violet effect
+                    if triggerViolet and distSq < radiusViolet*radiusViolet then
+                        local forceMagnitude = 500 / math.sqrt(distSq)
+                        otherBall.body:applyForce(forceMagnitude*dx, forceMagnitude*dy)
                     end
                 end
             end
