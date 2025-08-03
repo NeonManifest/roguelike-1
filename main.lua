@@ -24,6 +24,7 @@ function love.load()
         greenBall  = love.graphics.newImage("sprites/bola VERDE.png"),
         blueBall   = love.graphics.newImage("sprites/bola AZUL.png"),
         violetBall = love.graphics.newImage("sprites/bola VIOLETA.png"),
+        blackBall  = love.graphics.newImage("sprites/bola preta.png"),
     }
     balltypes = {
         whiteBall = true,
@@ -33,6 +34,7 @@ function love.load()
         greenBall = true,
         blueBall = true,
         violetBall = true,
+        blackBall = true
     }
     mushroomImages = {
         redMushroom = love.graphics.newImage("sprites/cogumelo grande vermelho 1.png"),
@@ -379,6 +381,20 @@ function gameUpdate(dt)
                 -- Remove all pockets from exile and add them back to pockets
                 for _, ex in ipairs(exile) do table.insert(pockets, ex) end
                 exile = {}
+                if ball.type == "blackBall" then
+                    -- Check if there are nonblack balls in the balls table
+                    local hasNonBlackBalls = false
+                    for _, b in ipairs(balls) do
+                        if b.type ~= "blackBall" then
+                            hasNonBlackBalls = true
+                            break
+                        end
+                    end
+                    -- If there are nonblack balls, lose a life
+                    if hasNonBlackBalls then
+                        loseLife(1)
+                    end
+                end
                 if ball.type == "whiteBall" then
                     -- If the white ball is pocketed, lose a life
                     loseLife(1)
@@ -567,7 +583,7 @@ function love.draw()
     local moneyY = 130
     local moneyIconSize = 8
     love.graphics.draw(moneyIcon, moneyX, moneyY, 0, moneyIconSize / moneyIcon:getWidth(), moneyIconSize / moneyIcon:getHeight())
-    love.graphics.print(player.money, moneyX + moneyIconSize + 2, moneyY - moneyIconSize / 2)
+    love.graphics.print(player.money, moneyX + moneyIconSize + 2, moneyY - moneyIconSize/2)
     -- Render player lives
     local livesX = 10
     local livesY = 130
