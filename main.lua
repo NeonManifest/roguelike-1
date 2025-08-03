@@ -403,6 +403,7 @@ function gameUpdate(dt)
                         table.remove(pockets, randomIndex)
                     end
                 end
+                player.money = player.money + player.moneyPerBall
                 break
             end
         end
@@ -420,6 +421,7 @@ function gameUpdate(dt)
     if allStationary then
         -- If there is only one ball left, start another round
         if #balls == 1 then
+            player.money = player.money + player.moneyPerRound
             initializeShop()
             love.update = shopUpdate
             return
@@ -489,7 +491,6 @@ function love.keypressed(key)
     if love.update == shopUpdate then
         local topRowCount = 2  -- buttons count (no items here)
         local bottomRowCount = #availableItems  -- all items on row 2
-
         if key == "left" then
             if selectedIndexY == 1 then
                 -- toggle between 1 and 2 for buttons
@@ -500,7 +501,6 @@ function love.keypressed(key)
                     selectedIndexX = bottomRowCount -- wrap left
                 end
             end
-
         elseif key == "right" then
             if selectedIndexY == 1 then
                 selectedIndexX = 3 - selectedIndexX
@@ -510,13 +510,11 @@ function love.keypressed(key)
                     selectedIndexX = 1 -- wrap right
                 end
             end
-
         elseif key == "down" then
             if selectedIndexY == 1 and bottomRowCount > 0 then
                 selectedIndexY = 2
                 selectedIndexX = math.floor((bottomRowCount + 1) / 2)
             end
-
         elseif key == "up" then
             if selectedIndexY == 2 then
                 selectedIndexY = 1
@@ -527,12 +525,21 @@ function love.keypressed(key)
                     selectedIndexX = 2
                 end
             end
+        elseif key == "space" then
+            -- Buy the selected item
+            if selectedIndexY == 2 and availableItems[selectedIndexX] then
+                local item = availableItems[selectedIndexX]
+                if buy(item) then
+                    -- Successfully bought item, remove it from available items
+                    table.remove(availableItems, selectedIndexX)
+                    -- Reset selection
+                    selectedIndexX = 1
+                end
+            end
         end
-
         return
     end
-
-
+    -- Gameplay space handling
     if key == "space" then
         if love.update == shotUpdate then
             love.update = shotStrengthUpdate
@@ -555,9 +562,15 @@ end
 function love.draw()
     love.graphics.push()
     love.graphics.scale(gameScale, gameScale)
+    -- Render player money
+    local moneyX = 130
+    local moneyY = 130
+    local moneyIconSize = 8
+    love.graphics.draw(moneyIcon, moneyX, moneyY, 0, moneyIconSize / moneyIcon:getWidth(), moneyIconSize / moneyIcon:getHeight())
+    love.graphics.print(player.money, moneyX + moneyIconSize + 2, moneyY - moneyIconSize / 2)
     -- Render player lives
     local livesX = 10
-    local livesY = 124
+    local livesY = 130
     local livesIconSize = 8
     for i = 1, player.maxLives do
         if i <= player.lives then
@@ -566,7 +579,6 @@ function love.draw()
             love.graphics.draw(lifeIconEmpty, livesX + (i-1) * (livesIconSize + 2), livesY, 0, livesIconSize / lifeIconEmpty:getWidth(), livesIconSize / lifeIconEmpty:getHeight())
         end
     end
-
     if love.update == shopUpdate then
         local w, h = 160, 144
         local font = love.graphics.getFont()
